@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - role: string (admin, technician, customer)
+    //   - createdAt: string
+    //
+    // Collection: repairRequests
+    // Fields:
+    //   - customerId: string (required)
+    //   - customerName: string
+    //   - deviceType: string (required)
+    //   - issueDescription: string (required)
+    //   - status: string (pending, assigned, in-progress, completed, cancelled)
+    //   - technicianId: string
+    //   - technicianName: string
+    //   - createdAt: string
+    //   - updatedAt: string
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "yogeshpardhi13@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isTechnician() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'technician';
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'technician', 'customer'];
+    }
+
+    function isValidRepairRequest(data) {
+      return data.keys().hasAll(['customerId', 'deviceType', 'issueDescription', 'status', 'createdAt']) &&
+             data.customerId is string &&
+             data.deviceType is string && data.deviceType.size() < 100 &&
+             data.issueDescription is string && data.issueDescription.size() < 2000 &&
+             data.status in ['pending', 'assigned', 'in-progress', 'completed', 'cancelled'];
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.role == 'customer' || isAdmin());
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+    }
+
+    match /repairRequests/{requestId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTechnician() || resource.data.customerId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidRepairRequest(request.resource.data) && 
+                    request.resource.data.customerId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isTechnician() && request.resource.data.customerId == resource.data.customerId) ||
+        (resource.data.customerId == request.auth.uid && resource.data.status == 'pending' && request.resource.data.status == 'cancelled')
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /repairRequests/{requestId}/logs/{logId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTechnician() || get(/databases/$(database)/documents/repairRequests/$(requestId)).data.customerId == request.auth.uid);
+      allow create: if isAuthenticated() && (isAdmin() || isTechnician());
+    }
+  }
+}

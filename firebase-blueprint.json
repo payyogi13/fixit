@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User full name" },
+        "role": { "type": "string", "enum": ["admin", "technician", "customer"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "RepairRequest": {
+      "title": "Repair Request",
+      "description": "A request for electronic repair",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string", "description": "UID of the customer" },
+        "customerName": { "type": "string" },
+        "deviceType": { "type": "string", "description": "e.g., Laptop, Phone, Tablet" },
+        "issueDescription": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "assigned", "in-progress", "completed", "cancelled"] },
+        "technicianId": { "type": "string", "description": "UID of the assigned technician" },
+        "technicianName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "deviceType", "issueDescription", "status", "createdAt"]
+    },
+    "RepairLog": {
+      "title": "Repair Log",
+      "description": "Status updates for a repair request",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "technicianId": { "type": "string" },
+        "note": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["requestId", "technicianId", "note", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/repairRequests/{requestId}": {
+      "schema": "RepairRequest",
+      "description": "Repair requests"
+    },
+    "/repairRequests/{requestId}/logs/{logId}": {
+      "schema": "RepairLog",
+      "description": "Logs for a specific repair"
+    }
+  }
+}

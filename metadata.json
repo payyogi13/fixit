@@ -1,0 +1,5 @@
+{
+  "name": "FixIt Pro",
+  "description": "A professional electronic repair management system with role-based access for customers, technicians, and administrators.",
+  "requestFramePermissions": []
+}
